@@ -70,6 +70,7 @@ Parameters:
     Type: Number
     Default: 1
     MinValue: 0
+    MaxValue: 1
     Description: >-
       Running tasks. 1 for the pilot (autoscaling deliberately off); set 0 to
       park the service without deleting anything.
@@ -305,15 +306,10 @@ Resources:
             # retention at whatever it was on day one.
             - { Name: FEEDBACK_TTL_DAYS, Value: !Ref FeedbackTtlDays }
             - { Name: CONVERSATION_TTL_DAYS, Value: !Ref ConversationTtlDays }
-            # The admin dashboard's own auth, pinned here to match the deployed
-            # stack. ADMIN_USER_DB_PATH restates the value backend/Dockerfile
-            # already sets in ENV, so it is explicit rather than load-bearing —
-            # note /var/lib/sgs-llm is created in the image, not mounted, so the
-            # account database does not outlive a task replacement either way.
-            # ADMIN_COOKIE_SECURE is the one that carries weight: config.py
-            # defaults it to False and nothing else sets it, so leaving it unset
-            # ships the session cookie without the Secure flag.
-            - { Name: ADMIN_USER_DB_PATH, Value: /var/lib/sgs-llm/admin-users.sqlite3 }
+            # Shared identities let the old and new task overlap during deployments.
+            - Name: ADMIN_USER_TABLE
+              Value: !ImportValue
+                Fn::Sub: '${FoundationStackName}-AdminUserTableName'
             - { Name: ADMIN_SESSION_HOURS, Value: !Ref AdminSessionHours }
             - { Name: ADMIN_COOKIE_SECURE, Value: 'true' }
             - Name: DATA_LAYER_BUCKET
@@ -366,10 +362,12 @@ Resources:
       LaunchType: FARGATE
       PlatformVersion: LATEST
       EnableExecuteCommand: true
+      AvailabilityZoneRebalancing: ENABLED
       PropagateTags: SERVICE
       # Give a new task time to boot before the ALB verdict counts against it.
       HealthCheckGracePeriodSeconds: 60
       DeploymentConfiguration:
+        # One task normally; keep it serving until its replacement is healthy.
         MinimumHealthyPercent: 100
         MaximumPercent: 200
         # A task that never goes healthy rolls back to the previous definition

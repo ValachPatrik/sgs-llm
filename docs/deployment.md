@@ -712,11 +712,47 @@ For the frontend:
    }
    ```
 
-This is intentionally a single-instance pilot design. An ECS deployment must mount a
-durable volume at `ADMIN_USER_DB_PATH`; an ephemeral task filesystem would lose users
-and sessions when the task is replaced. Admin reads emit structured audit lines to the
-service logs; retained conversations expand into complete inline timelines and CSV export
-is an explicit administrator action. Onboarding profiles remain anonymous.
+Production admin accounts and sessions live in the foundation stack's on-demand DynamoDB
+`AdminUserTable`. `ADMIN_USER_TABLE` selects this store; SQLite remains the default for
+local development. Passwords are still salted scrypt hashes, and sessions contain only a
+hash of the browser token. Strongly consistent reads make logins and logouts visible to
+all serving tasks immediately. Session expiry is checked by the application; DynamoDB TTL
+only cleans up expired records later. The table has point-in-time recovery and is retained
+if the stack is deleted.
+
+The service runs one task normally. During a rolling deployment, the old task keeps serving
+until its replacement is healthy (`MinimumHealthyPercent=100`, `MaximumPercent=200`). Both
+use the same DynamoDB table, so deployments do not require a stop-before-start outage or
+share a SQLite file. The extra task is billed only while the replacement overlaps.
+
+To create a production account from a trusted shell with the backend dependencies installed:
+
+```bash
+AWS_REGION=eu-central-1 python manage_admin.py admin@example.ch --table sgs-llm-backend-admin-users
+```
+
+For a one-time migration, first take a consistent SQLite backup using
+`sqlite3.Connection.backup`, keeping the backup private. Before switching production, run:
+
+```bash
+python migrate_admin.py --db /private/path/admin-backup.sqlite3 --table sgs-llm-backend-admin-users
+```
+
+This copies the existing password hashes and unexpired sessions and refuses to overwrite
+a different destination record. Avoid creating accounts during the migration. Do not rerun
+it after cutover, since the old snapshot no longer reflects new sessions or logouts. Keep
+the legacy EFS filesystem and its backups for recovery; the new service does not mount it.
+After cutover, rollback must also keep `ADMIN_USER_TABLE` and a DynamoDB-capable image.
+
+For a service-stack update, pass the **currently running image tag** explicitly
+(`ImageTag=<running-tag>`); the stack's saved image parameter can lag behind CI deployments.
+The DynamoDB store requires no always-running database server: storage, requests and backup
+storage are billed by usage ([AWS pricing](https://aws.amazon.com/dynamodb/pricing/on-demand/)).
+At this pilot's admin usage, these costs should be small.
+
+Admin reads emit structured audit lines to the service logs; retained conversations expand
+into complete inline timelines and CSV export is an explicit administrator action.
+Onboarding profiles remain anonymous.
 
 ### Environment contract
 
@@ -741,6 +777,7 @@ ECS from Secrets Manager at task start.
 | `APERTUS_REGION` | environment (`eu-central-1`) | Where the endpoint runs. Reported in logs and eval rows; residency is a stated concern for every model in this pilot |
 | `FEEDBACK_TABLE` / `CONVERSATION_TABLE` | foundation stack | DynamoDB table names |
 | `FEEDBACK_TTL_DAYS` / `CONVERSATION_TTL_DAYS` | parameters (0) | Days ahead to stamp `expires_at`; 0 = write no stamp (keep forever) |
+| `ADMIN_USER_TABLE` | production: foundation `AdminUserTable`; local: empty | Shared DynamoDB admin accounts and sessions; when set, SQLite is not used |
 | `ADMIN_USER_DB_PATH` | local: `./admin-users.sqlite3`; image: `/var/lib/sgs-llm/admin-users.sqlite3` | SQLite file containing administrator hashes and sessions; the image directory is owned by its non-root user |
 | `ADMIN_SESSION_HOURS` | environment (8) | Lifetime of an authenticated administrator session |
 | `ADMIN_COOKIE_SECURE` | environment (`false`) | Set `true` when the admin API is served over HTTPS |
