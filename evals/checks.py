@@ -242,6 +242,11 @@ def evaluate(question: dict[str, Any], observed: Observation) -> Verdict:
     if expect.get("must_produce_layer") and not observed.layers:
         failures.append(Failure("no_layer", "expected a map layer, none produced"))
 
+    if expect.get("must_not_fail_tools") and observed.failed_tools:
+        failures.append(
+            Failure("failed_tools", f"tools reported failures: {observed.failed_tools}")
+        )
+
     if expect.get("no_layer") and observed.layers:
         failures.append(Failure("unexpected_layer", f"put {observed.layers} on the map"))
 

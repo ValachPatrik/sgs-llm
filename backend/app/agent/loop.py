@@ -146,6 +146,10 @@ class TurnStats:
 
     model_id: str = ""
     tool_calls: list[str] = field(default_factory=list)
+    # Every call that errored, recoverable or not. Recoverable ones no longer render as a
+    # failed step, so this is the only place a turn that recovered still records that it
+    # had to - which the eval harness scores and the log line reports.
+    failed_tool_calls: list[str] = field(default_factory=list)
     input_tokens: int = 0
     output_tokens: int = 0
     layer_count: int = 0
@@ -352,6 +356,7 @@ async def run_turn(
                 )
 
                 if outcome.is_error:
+                    stats.failed_tool_calls.append(use.name)
                     scope = _named_filter_scope(use.name, arguments)
                     layer_id = _string_argument(arguments, "layer_id")
                     if scope is not None and layer_id is not None:

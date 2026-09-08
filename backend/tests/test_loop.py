@@ -161,7 +161,8 @@ async def test_a_recoverable_tool_error_is_not_a_failed_step(settings) -> None:
         ]
     )
 
-    events = await _collect(_message(), models, FakeGateway(tools), settings, TurnStats())
+    stats = TurnStats()
+    events = await _collect(_message(), models, FakeGateway(tools), settings, stats)
     steps = [e for e in events if e.type == "intermediate" and e.step_id != "s0"]
 
     assert not any(step.status == "failed" for step in steps)
@@ -174,6 +175,9 @@ async def test_a_recoverable_tool_error_is_not_a_failed_step(settings) -> None:
     tool_block = models.calls[1]["messages"][-1]["content"][0]["toolResult"]
     assert tool_block["status"] == "error"
     assert tool_block["content"] == [{"text": guidance}]
+    # And the turn must still record that it happened, or the eval harness scores the
+    # presentation and must_not_fail_tools can never fail on a recovered error.
+    assert stats.failed_tool_calls == ["filter_features"]
     assert events[-1].type == "final"
 
 

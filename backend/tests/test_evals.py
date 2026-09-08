@@ -450,3 +450,34 @@ class TestEvalBudget:
 
         assert settings.turn_timeout_for("primary") == 600.0
         assert settings.turn_timeout_for("apertus") == 600.0
+
+
+class TestSwisstopoFeedbackSet:
+    """The 2026-09-08 swisstopo findings live in their own file: questions.yaml's hash
+    gates run comparability, so appending to it would invalidate every stored baseline."""
+
+    def test_must_not_fail_tools_fails_when_a_tool_failed(self) -> None:
+        question = {"id": "x", "expect": {"must_not_fail_tools": True}}
+        verdict = evaluate(question, Observation(answer="ok", failed_tools=["filter_features"]))
+        assert not verdict.passed
+        assert "failed_tools" in verdict.stages
+
+    def test_must_not_fail_tools_passes_when_none_failed(self) -> None:
+        question = {"id": "x", "expect": {"must_not_fail_tools": True}}
+        assert evaluate(question, Observation(answer="ok")).passed
+
+    def test_the_set_loads_and_every_question_has_expectations(self) -> None:
+        from evals.run import load_questions
+
+        path = QUESTIONS_PATH.parent / "swisstopo-feedback.yaml"
+        questions = load_questions(path, None, None)
+        assert len(questions) >= 13
+        assert all(question.get("expect") for question in questions)
+        assert all(question.get("user_intent") for question in questions)
+        assert len({question["id"] for question in questions}) == len(questions)
+
+    def test_the_question_set_hash_differs_per_file(self) -> None:
+        from evals.run import question_set_hash
+
+        path = QUESTIONS_PATH.parent / "swisstopo-feedback.yaml"
+        assert question_set_hash(path) != question_set_hash(QUESTIONS_PATH)
