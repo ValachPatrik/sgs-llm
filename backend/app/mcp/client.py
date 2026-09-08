@@ -17,6 +17,7 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 
+from .arguments import normalise_arguments
 from .schema import to_tool_spec
 
 logger = logging.getLogger(__name__)
@@ -109,9 +110,17 @@ class ToolSession:
     def tool_names(self) -> list[str]:
         return [spec["toolSpec"]["name"] for spec in self._tool_specs]
 
+    def _schema_for(self, name: str) -> dict[str, Any]:
+        for spec in self._tool_specs:
+            tool = spec.get("toolSpec") or {}
+            if tool.get("name") == name:
+                return (tool.get("inputSchema") or {}).get("json") or {}
+        return {}
+
     async def call(self, name: str, arguments: dict[str, Any]) -> ToolOutcome:
         if self._session is None:
             return ToolOutcome(text=f"Tool {name} is not available.", data=None, is_error=True)
+        arguments = normalise_arguments(arguments, self._schema_for(name))
         try:
             result = await self._session.call_tool(name, arguments)
         except (Exception, BaseExceptionGroup) as exc:

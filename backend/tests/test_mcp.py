@@ -105,6 +105,49 @@ class TestSchemaConversion:
         assert "wor…" not in description
 
 
+class TestArgumentRepairIsWired:
+    async def test_repairs_arguments_before_calling_the_tool(self) -> None:
+        """Asserted on what the session was handed, not on the return value: a test that
+        only checked the result would pass with the wiring removed."""
+        session_double = FakeSession(FakeResult([FakeBlock('{"feature_count": 1}')]))
+        specs = [
+            {
+                "toolSpec": {
+                    "name": "filter_features",
+                    "description": "d",
+                    "inputSchema": {
+                        "json": {
+                            "type": "object",
+                            "properties": {
+                                "layer_id": {"type": "string"},
+                                "place": {"type": "string"},
+                                "place_kind": {"type": "string"},
+                            },
+                            "required": ["layer_id"],
+                        }
+                    },
+                }
+            }
+        ]
+        session = ToolSession(session_double, specs)
+
+        await session.call(
+            "filter_features",
+            {"layer_id": "ch.bafu.x", "place": {"name": "Bern", "kind": "kanton"}},
+        )
+
+        assert session_double.calls[-1] == (
+            "filter_features",
+            {"layer_id": "ch.bafu.x", "place": "Bern", "place_kind": "kanton"},
+        )
+
+    async def test_passes_arguments_through_when_no_schema_is_known(self) -> None:
+        session_double = FakeSession(FakeResult([FakeBlock("{}")]))
+        session = ToolSession(session_double, [])
+        await session.call("filter_features", {"place": {"name": "Bern"}})
+        assert session_double.calls[-1] == ("filter_features", {"place": {"name": "Bern"}})
+
+
 class TestErrorClassification:
     """A tool that declined and said what to do instead is not a transport failure, and
     the two must not render the same way (swisstopo Q1/Q5)."""
