@@ -89,9 +89,20 @@ class TestSchemaConversion:
     def test_falls_back_to_the_name_when_a_tool_has_no_description(self) -> None:
         assert to_tool_spec("t", None, {})["toolSpec"]["description"] == "t"
 
-    def test_truncates_an_enormous_description(self) -> None:
-        spec = to_tool_spec("t", "x" * 5000, {})
-        assert len(spec["toolSpec"]["description"]) <= 900
+    def test_keeps_a_long_real_tool_description_intact(self) -> None:
+        """geosearch's filter_features description is 1242 chars, and the sentence saying
+        its result_id goes to display_layer is the last one in it."""
+        description = "word " * 248 + "final."
+        assert len(description) > 1200
+        spec = to_tool_spec("filter_features", description, {})
+        assert spec["toolSpec"]["description"] == description
+
+    def test_truncates_an_enormous_description_on_a_word_boundary(self) -> None:
+        spec = to_tool_spec("t", "word " * 2000, {})
+        description = spec["toolSpec"]["description"]
+        assert len(description) <= 4000
+        assert description.endswith("…")
+        assert "wor…" not in description
 
 
 class TestToolSession:
