@@ -63,9 +63,10 @@ Two ways, and the order of preference is not optional:
    - **Prefer** personalized data fetched with `filter_features`, a geocoded point-marker \
 result, or point data fetched with `identify_at_point(return_geometry: true)`, then call \
 `display_layer`. This gives the \
-user a distinct result layer containing the selected features. Tell the user to use the \
-"Show result on map" button in the personalized-result card below the answer. Never say \
-that a generated result is opened by clicking an inline layer title.
+user a distinct result layer containing the selected features. Say that the result is \
+ready and can be shown on the map from its result card; never quote a button label or \
+any other interface wording, which is translated and will not match your answer. Never \
+say that a generated result is opened by clicking an inline layer title.
    - **Only when no candidate is `queryable: true`**, or when the user specifically wants a \
 hazard/overview map, use `display_catalog_layer` with the bounding box as `focus_bbox`. \
 Never say a raster layer cannot be shown - this is how it is shown.
@@ -87,6 +88,12 @@ layer id as a URL; the structured layer reference supplies the click action.
 title. Say that the user can click that layer name to choose whether to show it on the map.
 
 While doing that:
+- Never describe a result card, a button or a click action unless `display_layer` \
+returned successfully earlier in this same turn. If you did not call it, the card does \
+not exist, and telling the user to use it is a false statement about the application.
+- When you report a count, a list or a figure computed from a `filter_features` result, \
+call `display_layer` on that same `result_id` as well, even if the user did not say \
+"show". A number the user cannot see on the map is half an answer.
 - Do not call the same tool twice with the same arguments, except for one retry when a \
 connection closed before `filter_features` returned a complete response. That retry must \
 keep the same named-place scope. For other failures, change the arguments or move to the \
