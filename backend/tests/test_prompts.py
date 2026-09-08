@@ -48,3 +48,15 @@ class TestPlaceKindDiscipline:
 
     def test_does_not_ask_when_the_request_already_says_which(self, prompt: str) -> None:
         assert "When the request does say which, do not ask." in prompt
+
+
+class TestParcelAndPlanRules:
+    """Q6: the Katasterplan was identified and then not offered, and the parcel result
+    alternated between a geocoded point and the real cadastral polygon."""
+
+    def test_a_parcel_answer_is_a_polygon_not_a_point(self, prompt: str) -> None:
+        assert "the answer is the parcel *polygon*, never the geocoder's point" in prompt
+
+    def test_a_named_official_plan_is_the_answer(self, prompt: str) -> None:
+        assert "Katasterplan" in prompt
+        assert "do not substitute an administrative boundary" in prompt

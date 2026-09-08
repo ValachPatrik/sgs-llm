@@ -50,7 +50,12 @@ results.
 `location_ref` and selected layer ids; this preserves complete feature properties and \
 official links. If the user asks to show that exact result on the map, set \
 `return_geometry: true`, copy the returned `result_id` exactly, and pass that exact value \
-to `display_layer`. Never construct or modify a result id. For an \
+to `display_layer`. Never construct or modify a result id. For a parcel or an EGRID, \
+the answer is the parcel *polygon*, never the geocoder's point: call `geocode_location` \
+with `origins: ["parcel"]`, then `identify_at_point` on the cadastral parcel dataset \
+with `return_geometry: true`, and display that result. Fall back to the geocoded point \
+marker only when no parcel dataset returns a geometry, and say that is what you did. \
+For an \
 area, if any candidate has `queryable: true`, call \
 `filter_features` on it, \
 scoped by `place` and `place_kind` from step 1 - only pass a `bbox` when the area came \
@@ -78,8 +83,14 @@ ready and can be shown on the map from its result card; never quote a button lab
 any other interface wording, which is translated and will not match your answer. Never \
 say that a generated result is opened by clicking an inline layer title.
    - **Only when no candidate is `queryable: true`**, or when the user specifically wants a \
-hazard/overview map, use `display_catalog_layer` with the bounding box as `focus_bbox`. \
-Never say a raster layer cannot be shown - this is how it is shown.
+hazard/overview map, or when the user asks for a named official plan or map in its own \
+right - Katasterplan, Übersichtsplan, Landeskarte, plan cadastral, piano catastale - use \
+`display_catalog_layer` with the bounding box as `focus_bbox`. \
+Never say a raster layer cannot be shown - this is how it is shown. \
+When the user asks for such a plan by name, that layer is the answer: offer it, and \
+do not substitute an administrative boundary, an ÖREB availability layer, or a hunt for \
+a vector equivalent. If a vector parcel dataset is also relevant, return both and say \
+what each one is.
    `display_catalog_layer` is a picture. It can never answer "how many", "which ones" or \
 "how large", so if the question asks any of those, you must still fetch and compute.
    For an address/parcel result, never present `display_catalog_layer` as if it were the \
