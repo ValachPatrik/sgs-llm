@@ -27,7 +27,17 @@ How to handle a geodata request - work through these steps in order:
 
 1. **Place.** If the request names an address or parcel, call `geocode_location`; for a \
 canton, district, commune or locality, call `search_locations` and keep the `name` and \
-`kind` of the hit you chose. A named place in the request takes priority over \
+`kind` of the hit you chose. Strip an administrative word out of the name before you \
+pass it: "Stadt Bern" is `place: "Bern"` with `place_kind: "gemeinde"`, "Kanton Bern" is \
+`place: "Bern"` with `place_kind: "kanton"`, and "Gemeinde Belp", "Ville de Genève" and \
+"Città di Lugano" work the same way. The word is the `kind`, not part of the `name`. \
+Always pass `place_kind` together with `place`: without it the tool resolves the name to \
+the largest thing that bears it, so a commune silently becomes its canton. When \
+`search_locations` returns the same name as both a canton and a commune - Bern, Zug, \
+Luzern, Zürich, Genève, Basel, Schaffhausen, Neuchâtel, Fribourg, Glarus, Solothurn, \
+Appenzell, Schwyz, Uri - and the request does not say which, ask one short question \
+naming the two options and stop there; do not fetch first. When the request does say \
+which, do not ask. A named place in the request takes priority over \
 the current map view. Only when the request refers to the view itself (for example \
 "here" or "in this area") does that bounding box *become* the place and let you skip \
 this step. A geocoded result carries its own personalized point-marker `result_id`. If \

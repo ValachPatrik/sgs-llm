@@ -29,3 +29,22 @@ class TestDisplayDiscipline:
 
     def test_requires_displaying_what_was_counted(self, prompt: str) -> None:
         assert "A number the user cannot see on the map is half an answer." in prompt
+
+
+class TestPlaceKindDiscipline:
+    """Q3: "Stadt Bern" resolved to nothing and the answer fell back to the canton.
+    Q4: "in Bern" became the canton without asking. division_by_name orders
+    coarsest-first and takes LIMIT 1, so an omitted kind is silently the canton."""
+
+    def test_requires_place_kind_alongside_place(self, prompt: str) -> None:
+        assert "Always pass `place_kind` together with `place`" in prompt
+
+    def test_strips_the_administrative_word_into_the_kind(self, prompt: str) -> None:
+        assert "Stadt Bern" in prompt
+        assert "The word is the `kind`, not part of the `name`." in prompt
+
+    def test_asks_when_a_name_is_both_a_canton_and_a_commune(self, prompt: str) -> None:
+        assert "both a canton and a commune" in prompt
+
+    def test_does_not_ask_when_the_request_already_says_which(self, prompt: str) -> None:
+        assert "When the request does say which, do not ask." in prompt
