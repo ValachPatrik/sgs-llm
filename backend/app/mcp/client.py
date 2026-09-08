@@ -88,6 +88,10 @@ class ToolOutcome:
     # Parsed JSON, when the tool returned any - used to build LayerSpecs.
     data: Any | None
     is_error: bool
+    # A tool that declined and said what to do instead, rather than a transport failure.
+    # The model gets the whole message either way; the user does not need a failed step
+    # for a turn that recovers from one.
+    recoverable: bool = False
 
 
 class ToolSession:
@@ -133,12 +137,14 @@ class ToolSession:
                 data = None
 
         semantic_error = _semantic_error(data)
+        is_error = bool(getattr(result, "is_error", False)) or semantic_error is not None
+        text = (semantic_error or payload)[:MAX_TOOL_RESULT_CHARS] or "(no output)"
 
-        return ToolOutcome(
-            text=(semantic_error or payload)[:MAX_TOOL_RESULT_CHARS] or "(no output)",
-            data=data,
-            is_error=bool(getattr(result, "is_error", False)) or semantic_error is not None,
-        )
+        if is_error:
+            # Logged because the user is no longer shown a failed step for this.
+            logger.warning("tool %s declined: %s", name, text[:200])
+
+        return ToolOutcome(text=text, data=data, is_error=is_error, recoverable=is_error)
 
 
 NO_TOOLS = ToolSession(None, [])

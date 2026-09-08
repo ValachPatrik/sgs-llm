@@ -105,6 +105,42 @@ class TestSchemaConversion:
         assert "wor…" not in description
 
 
+class TestErrorClassification:
+    """A tool that declined and said what to do instead is not a transport failure, and
+    the two must not render the same way (swisstopo Q1/Q5)."""
+
+    async def test_marks_a_tool_declared_error_recoverable(self) -> None:
+        payload = {"error": "Give an area: `place` from search_locations, or a bbox."}
+        session = ToolSession(FakeSession(FakeResult([FakeBlock(json.dumps(payload))])), [])
+        outcome = await session.call("filter_features", {"layer_id": "ch.bafu.x"})
+        assert outcome.is_error
+        assert outcome.recoverable
+
+    async def test_marks_an_is_error_result_recoverable(self) -> None:
+        result = FakeResult([FakeBlock("1 validation error for filter_featuresArguments")], True)
+        session = ToolSession(FakeSession(result), [])
+        outcome = await session.call("filter_features", {"place": {"name": "Bern"}})
+        assert outcome.is_error
+        assert outcome.recoverable
+
+    async def test_does_not_mark_a_transport_failure_recoverable(self) -> None:
+        session = ToolSession(FakeSession(TimeoutError("timed out")), [])
+        outcome = await session.call("filter_features", {"layer_id": "ch.bafu.x"})
+        assert outcome.is_error
+        assert not outcome.recoverable
+
+    async def test_does_not_mark_an_unavailable_tool_recoverable(self) -> None:
+        outcome = await NO_TOOLS.call("filter_features", {})
+        assert outcome.is_error
+        assert not outcome.recoverable
+
+    async def test_a_successful_call_is_neither(self) -> None:
+        session = ToolSession(FakeSession(FakeResult([FakeBlock('{"feature_count": 3}')])), [])
+        outcome = await session.call("filter_features", {"layer_id": "ch.bafu.x"})
+        assert not outcome.is_error
+        assert not outcome.recoverable
+
+
 class TestToolSession:
     async def test_parses_json_output_into_data(self) -> None:
         payload = {"layers": [{"layer_id": "ch.bafu.x"}]}

@@ -135,6 +135,7 @@ def _verify_named_filter(name: str, arguments: dict[str, Any], outcome: ToolOutc
         ),
         data=None,
         is_error=True,
+        recoverable=True,
     )
 
 
@@ -355,13 +356,24 @@ async def run_turn(
                     layer_id = _string_argument(arguments, "layer_id")
                     if scope is not None and layer_id is not None:
                         failed_named_filters[layer_id] = scope
-                    yield Intermediate(
-                        message_id=message_id,
-                        step_id=step_id,
-                        status="failed",
-                        label=i18n.tool_failed(lang),
-                        detail=outcome.text[:400],
-                    )
+                    if outcome.recoverable:
+                        # The tool said what to do instead and the model has the whole
+                        # message; a red step carrying pydantic's error URL is not what
+                        # the user needs from a turn that then answers.
+                        yield Intermediate(
+                            message_id=message_id,
+                            step_id=step_id,
+                            status="finished",
+                            label=i18n.tool_retrying(lang),
+                        )
+                    else:
+                        yield Intermediate(
+                            message_id=message_id,
+                            step_id=step_id,
+                            status="failed",
+                            label=i18n.tool_failed(lang),
+                            detail=outcome.text[:400],
+                        )
                     continue
 
                 layer_id = _string_argument(arguments, "layer_id")

@@ -144,6 +144,39 @@ async def test_failed_tool_is_reported_and_the_turn_still_answers(settings) -> N
     assert events[-1].type == "final"
 
 
+async def test_a_recoverable_tool_error_is_not_a_failed_step(settings) -> None:
+    """swisstopo Q1/Q5: geosearch's own "give me an area" guidance rendered as a red
+    Step failed with pydantic's error URL under it, on turns that then answered."""
+    from tests.conftest import FakeModels
+
+    guidance = "Give an area: `place` from search_locations, or a bbox in WGS84."
+    tools = FakeToolSession(
+        {"filter_features": ToolOutcome(text=guidance, data=None, is_error=True, recoverable=True)},
+        specs=["filter_features"],
+    )
+    models = FakeModels(
+        [
+            tool_result("filter_features", {"layer_id": "ch.bafu.x"}),
+            text_result("Ich habe die Abfrage angepasst."),
+        ]
+    )
+
+    events = await _collect(_message(), models, FakeGateway(tools), settings, TurnStats())
+    steps = [e for e in events if e.type == "intermediate" and e.step_id != "s0"]
+
+    assert not any(step.status == "failed" for step in steps)
+    assert [step.label for step in steps] == [
+        i18n.tool_running("filter_features", "de"),
+        i18n.tool_retrying("de"),
+    ]
+    assert all(step.detail is None for step in steps)
+    # The user no longer sees it; the model must, or it cannot recover.
+    tool_block = models.calls[1]["messages"][-1]["content"][0]["toolResult"]
+    assert tool_block["status"] == "error"
+    assert tool_block["content"] == [{"text": guidance}]
+    assert events[-1].type == "final"
+
+
 async def test_failed_named_place_filter_keeps_its_scope_on_bbox_retry(settings) -> None:
     """A transport retry must not turn a canton into its rectangular bounding box."""
 
@@ -226,11 +259,12 @@ async def test_named_place_filter_fails_closed_without_clipping_provenance(setti
 
     events = await _collect(_message(), models, FakeGateway(tools), settings, TurnStats())
 
-    failed = [
-        event for event in events if event.type == "intermediate" and event.status == "failed"
-    ]
-    assert len(failed) == 1
-    assert "did not confirm clipping" in (failed[0].detail or "")
+    # Fails closed towards the model, not towards the user: the guard fires on turns that
+    # then retry successfully, so it reports as an adjustment rather than a red step.
+    assert not any(event.type == "intermediate" and event.status == "failed" for event in events)
+    assert any(
+        event.type == "intermediate" and event.label == i18n.tool_retrying("de") for event in events
+    )
     tool_block = models.calls[1]["messages"][-1]["content"][0]["toolResult"]
     assert tool_block["status"] == "error"
     assert (
