@@ -57,13 +57,40 @@ no tool was called. Without the second kind, a model that responds "which did yo
 everything would score well while being useless - the benchmark would be gameable by pure
 caution. Over-asking is a real failure mode, so it gets its own stage: `over_clarified`.
 
+## The swisstopo feedback set
+
+[`evals/swisstopo-feedback.yaml`](../evals/swisstopo-feedback.yaml) - 16 cases from
+swisstopo's test round of 2026-09-08, including the two-turn conversations and two
+over-clarification counter-cases. Run it with `--questions`:
+
+```bash
+python evals/run.py --questions evals/swisstopo-feedback.yaml \
+  --mcp-url http://127.0.0.1:8790/mcp --model <id> --region <region>
+```
+
+It is a **separate file, not extra categories in `questions.yaml`**: every result row
+records the question set's sha256, and two runs are only comparable when those match, so
+appending customer regression cases to the benchmark would invalidate every baseline
+already stored under `evals/results/`.
+
+The cases are written to the *correct* answer even where the defect is in the MCP server
+rather than the agent, so `swisstopo-parks-bern-en` is expected to fail on its
+`must_mention: ["8"]` until geosearch stops clipping discrete objects. That is what it is
+for; adjusting the expectation to match current behaviour would delete the finding.
+
 ## How a question is scored
 
 Rule checks first - deterministic, free, and useful while only one model is reachable.
 Each failure carries a **stage**, so the report says *where* a model broke down rather
 than only that it failed: `no_tool_call`, `wrong_tool`, `chain_broken`, `no_layer`,
 `unexpected_layer`, `too_many_tools`, `wrong_language`, `missing_mention`,
-`forbidden_content`, `no_clarification`, `over_clarified`, `exchange_error`, `empty_answer`.
+`forbidden_content`, `no_clarification`, `over_clarified`, `exchange_error`, `empty_answer`,
+`failed_tools`.
+
+`failed_tools` reads the turn's own record of which calls errored, not the progress
+events: a tool that declines and says what to do instead reports to the user as an
+adjustment rather than a failed step (`app/agent/loop.py`), so scoring the presentation
+would leave `must_not_fail_tools` unable to see a recovered error at all.
 
 Where correctness is a matter of degree - "did it refuse gracefully", "is that figure
 right" - the question carries `judge: true` and `--judge` has a model grade it 1-5 with a

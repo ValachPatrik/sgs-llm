@@ -26,6 +26,10 @@ prompt variant that produced it, so two runs can be compared only when both matc
     # against a running geosearch instead of the bundled stand-in
     python evals/run.py --mcp-url http://127.0.0.1:8790/mcp --only geosearch_tools --model ...
 
+    # the swisstopo feedback regression set instead of the benchmark
+    python evals/run.py --questions evals/swisstopo-feedback.yaml \
+      --mcp-url http://127.0.0.1:8790/mcp --model ...
+
 Credentials come from the normal boto3 chain, so AWS_BEARER_TOKEN_BEDROCK works exactly
 as it does for scripts/ask-llm.py (VPN required). Apertus needs no AWS credential, but its
 endpoint only answers from inside the VPC or the askEarth gateway IP, and only during
