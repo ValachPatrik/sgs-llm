@@ -181,6 +181,71 @@ async def test_a_recoverable_tool_error_is_not_a_failed_step(settings) -> None:
     assert events[-1].type == "final"
 
 
+async def test_an_identical_repeated_tool_call_is_answered_not_executed(settings) -> None:
+    """Apertus repeated the same invalid filter_features call verbatim. The second one
+    cannot succeed, so spending an iteration and a round trip on it is waste."""
+    from tests.conftest import FakeModels
+
+    tools = FakeToolSession(
+        {"search_layers": ToolOutcome(text="no matches", data=None, is_error=True)}
+    )
+    arguments = {"query": "Naturpark"}
+    models = FakeModels(
+        [
+            tool_result("search_layers", arguments, "tu-1"),
+            tool_result("search_layers", arguments, "tu-2"),
+            text_result("Ich habe keinen passenden Datensatz gefunden."),
+        ]
+    )
+
+    events = await _collect(_message(), models, FakeGateway(tools), settings, TurnStats())
+
+    assert tools.calls == [("search_layers", arguments)]
+    second_block = models.calls[2]["messages"][-1]["content"][0]["toolResult"]
+    assert second_block["toolUseId"] == "tu-2"
+    assert "already called" in second_block["content"][0]["text"]
+    assert events[-1].type == "final"
+
+
+async def test_filter_features_keeps_one_repeat_for_the_connection_retry(settings) -> None:
+    """The prompt asks for exactly one filter_features retry after a connection closed
+    early, so the duplicate guard must not take that away."""
+    from tests.conftest import FakeModels
+
+    payload = {"result_id": "fs_1", "clipped_to": "kanton Genève"}
+
+    class ScriptedTools(FakeToolSession):
+        def __init__(self) -> None:
+            super().__init__({}, specs=["filter_features"])
+            self._script = [
+                ToolOutcome(text="connection closed", data=None, is_error=True),
+                ToolOutcome(text=json.dumps(payload), data=payload, is_error=False),
+            ]
+
+        async def call(self, name, arguments):
+            self.calls.append((name, arguments))
+            return self._script.pop(0)
+
+    arguments = {
+        "layer_id": "ch.swisstopo.vec25-gebaeude",
+        "place": "Genève",
+        "place_kind": "kanton",
+    }
+    tools = ScriptedTools()
+    models = FakeModels(
+        [
+            tool_result("filter_features", arguments, "tu-1"),
+            tool_result("filter_features", arguments, "tu-2"),
+            text_result("Die Gebäude im Kanton Genf sind abgefragt."),
+        ]
+    )
+
+    events = await _collect(_message(), models, FakeGateway(tools), settings, TurnStats())
+
+    assert len(tools.calls) == 2
+    assert events[-1].type == "final"
+
+
 async def test_failed_named_place_filter_keeps_its_scope_on_bbox_retry(settings) -> None:
     """A transport retry must not turn a canton into its rectangular bounding box."""
 

@@ -7,6 +7,7 @@ two terminal events.
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
@@ -42,6 +43,15 @@ from .router import ModelRouter
 logger = logging.getLogger(__name__)
 
 THINKING_STEP = "s0"
+
+REPEATED_TOOL_CALL_NUDGE = (
+    "You already called this tool with exactly these arguments and it did not work. "
+    "Change the arguments or move to the next step; do not repeat it."
+)
+
+# filter_features gets two, because the prompt asks for one retry after a connection
+# closed before a complete response. Every other tool gets one attempt per argument set.
+_CALL_ALLOWANCE = {"filter_features": 2}
 
 RETRY_TOOL_CALL_NUDGE = (
     "That tool call was incomplete - it named no tool. Either call one of the available "
@@ -204,6 +214,7 @@ async def run_turn(
     catalog_layers: list[CatalogLayerRef] = []
     focus_bbox: BBox | None = None
     failed_named_filters: dict[str, _NamedFilterScope] = {}
+    attempted: dict[tuple[str, str], int] = {}
 
     yield Intermediate(
         message_id=message_id, step_id=THINKING_STEP, status="started", label=i18n.thinking(lang)
@@ -345,6 +356,22 @@ async def run_turn(
                 arguments = _restore_failed_named_scope(
                     use.name, use.arguments, failed_named_filters
                 )
+
+                signature = (use.name, json.dumps(arguments, sort_keys=True, default=str))
+                if attempted.get(signature, 0) >= _CALL_ALLOWANCE.get(use.name, 1):
+                    logger.info("%s refused a repeated identical call", use.name)
+                    blocks.append(
+                        tool_result_block(use.tool_use_id, REPEATED_TOOL_CALL_NUDGE, is_error=True)
+                    )
+                    yield Intermediate(
+                        message_id=message_id,
+                        step_id=step_id,
+                        status="finished",
+                        label=i18n.tool_retrying(lang),
+                    )
+                    continue
+                attempted[signature] = attempted.get(signature, 0) + 1
+
                 outcome = _verify_named_filter(
                     use.name,
                     arguments,
