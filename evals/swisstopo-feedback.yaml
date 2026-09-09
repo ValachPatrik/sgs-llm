@@ -132,10 +132,18 @@
         Der amtliche Katasterplan (CadastralWebMap) deckt die Gemeinde Belp ab. Sie können
         ihn als amtliche Kartenebene hinzufügen.
   user_intent: >-
-    Measured: geocode_location with origins ["parcel"] returns two genuine parcels named
-    "Belp 20", with different EGRIDs. Two real candidates and nothing to choose between
-    them is the case where asking is right, so a good answer lists them and asks - it
-    must not silently pick one or invent a third.
+    KNOWN FAILING, and the failure is the finding. swisstopo reported this as "sometimes
+    it returns points, sometimes the real parcel"; three live Sonnet runs produced three
+    different behaviours: (1) listed the two genuine "Belp 20" parcels, which have
+    different EGRIDs, and asked which; (2) answered that no queryable federal vector
+    parcel dataset exists and offered CadastralWebMap and OEREB instead; (3) the
+    point-vs-polygon alternation in the report. The prompt rule added for this did not
+    settle it. Asking between two real candidates is correct, so that is what is asserted
+    here - but the underlying question is whether a parcel polygon is reachable at all,
+    since geocode_location returns the parcel with its coordinates and EGRID while the
+    polygon has to come from identify_at_point against the cadastre. That is a geosearch
+    capability question, not a prompt one. swisstopo-parzelle-egrid-de covers the path
+    that does work deterministically.
   expect:
     must_clarify: true
     no_layer: true
