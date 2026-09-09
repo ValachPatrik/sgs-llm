@@ -91,3 +91,19 @@ class TestEgridRule:
 
     def test_an_egrid_is_passed_without_spaces(self, prompt: str) -> None:
         assert "remove the spaces from an EGRID" in prompt
+
+
+class TestParcelMechanismRules:
+    """Q6b. Measured against the live services: identify on ch.swisstopo-vd.amtliche-
+    vermessung at the geocoder's full-precision point returns parcel number 20 with the
+    matching egris_egrid as a Polygon, so the polygon IS reachable. Two things stopped
+    the agent finding it - search_layers cannot surface a layer whose whole searchable
+    identity is the label "OpenData-AV", and rounding the point to four decimals returns
+    a neighbouring parcel (473) instead."""
+
+    def test_names_the_cadastral_survey_dataset(self, prompt: str) -> None:
+        assert "ch.swisstopo-vd.amtliche-vermessung" in prompt
+        assert "OpenData-AV" in prompt
+
+    def test_forbids_retyping_a_coordinate_from_a_tool_result(self, prompt: str) -> None:
+        assert "never re-type or round a coordinate" in prompt

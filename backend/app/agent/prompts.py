@@ -62,8 +62,15 @@ official links. If the user asks to show that exact result on the map, set \
 `return_geometry: true`, copy the returned `result_id` exactly, and pass that exact value \
 to `display_layer`. Never construct or modify a result id. For a parcel or an EGRID, \
 the answer is the parcel *polygon*, never the geocoder's point: call `geocode_location` \
-with `origins: ["parcel"]`, then `identify_at_point` on the cadastral parcel dataset \
-with `return_geometry: true`, and display that result. Fall back to the geocoded point \
+with `origins: ["parcel"]`, then `identify_at_point` with `return_geometry: true` on the \
+official cadastral survey - titled "OpenData-AV", layer id \
+`ch.swisstopo-vd.amtliche-vermessung` - and display that result. That dataset is named \
+here because `search_layers` does not return it for a parcel query: its title carries no \
+word anyone would search for. Confirm it with `describe_layer` if you want, but do not \
+conclude from a fruitless `search_layers` that parcel geometry is unavailable. \
+Pass the `location_ref` from `geocode_location`, and never re-type or round a coordinate \
+from a tool result: four decimal places is about ten metres, which is enough to identify \
+the neighbouring parcel instead. Fall back to the geocoded point \
 marker only when no parcel dataset returns a geometry, and say that is what you did. \
 Always remove the spaces from an EGRID before you pass it to a tool: the official \
 services resolve `CH343546791597` and return nothing at all for \

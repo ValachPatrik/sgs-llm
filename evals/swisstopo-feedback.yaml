@@ -132,18 +132,19 @@
         Der amtliche Katasterplan (CadastralWebMap) deckt die Gemeinde Belp ab. Sie können
         ihn als amtliche Kartenebene hinzufügen.
   user_intent: >-
-    KNOWN FAILING, and the failure is the finding. swisstopo reported this as "sometimes
-    it returns points, sometimes the real parcel"; three live Sonnet runs produced three
-    different behaviours: (1) listed the two genuine "Belp 20" parcels, which have
-    different EGRIDs, and asked which; (2) answered that no queryable federal vector
-    parcel dataset exists and offered CadastralWebMap and OEREB instead; (3) the
-    point-vs-polygon alternation in the report. The prompt rule added for this did not
-    settle it. Asking between two real candidates is correct, so that is what is asserted
-    here - but the underlying question is whether a parcel polygon is reachable at all,
-    since geocode_location returns the parcel with its coordinates and EGRID while the
-    polygon has to come from identify_at_point against the cadastre. That is a geosearch
-    capability question, not a prompt one. swisstopo-parzelle-egrid-de covers the path
-    that does work deterministically.
+    swisstopo reported this as "sometimes it returns points, sometimes the real parcel",
+    and three live Sonnet runs gave three behaviours: asked which of the two genuine
+    "Belp 20" parcels was meant, declared no queryable federal parcel dataset to exist,
+    or fell back to a point. Measured since: the polygon IS reachable - identify on
+    ch.swisstopo-vd.amtliche-vermessung ("OpenData-AV") at the geocoder's full-precision
+    point returns parcel number 20 with the matching egris_egrid as a Polygon. Two things
+    hid it. search_layers cannot surface a layer whose entire searchable identity is the
+    label "OpenData-AV" and the attribution "AV" - no word a user would type - so
+    concluding it was unavailable was reasonable. And rounding the point to four decimal
+    places, about ten metres, identifies the neighbouring parcel 473 instead. The prompt
+    now names the dataset and forbids re-typing a coordinate; the discovery gap is
+    Ageospatial's. Two real candidates with nothing to choose between them is still the
+    case where asking is right, so that is what is asserted.
   expect:
     must_clarify: true
     no_layer: true
