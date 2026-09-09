@@ -178,6 +178,16 @@
   user_intent: >-
     There are several Brügg/Brugg in Switzerland. Asking which one is the correct
     behaviour; silently picking one is worse than being slow.
+
+    KNOWN FAILING, and it predates fix/swisstopo-feedback-round-1 - measured against
+    ef1797d with catalog layers held on, so the comparison isolates the prompt: both the
+    old and new prompts answer for Brügg BE without asking. Worth re-deciding rather than
+    silently adjusting. search_locations("Brügg") does surface the ambiguity - Brügg BE at
+    similarity 0.7508 and Brugg AG at 0.5778 - so the model can see it; it picks the exact
+    umlaut match and names it with its canton ("die Gemeinde Brügg BE"). Under the agreed
+    principle - ask when genuinely ambiguous, do not when it is clear - naming the place
+    explicitly is arguably the better answer here, which would make this question's
+    premise the thing to change. Left as-is: it is not ours to redefine.
   expect:
     must_clarify: true
     answer_lang: de
