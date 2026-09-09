@@ -76,11 +76,9 @@ which tells the agent it cannot show raster layers at all.
 ## Two kinds of map output, two expectations
 
 A **personalized layer** is drawn on the map; a **catalog reference** is only offered as a
-clickable title. Both used to land in one `Observation.layers` list, which made `no_layer`
-fail any question whose model called `search_layers` — so the default had to stay off, and
-the default staying off is why every stored run measured the fallback prompt.
-
-They are now separate, and so are the expectations:
+clickable title. Both used to land in one `Observation.layers` list, so `no_layer` failed
+any question whose model called `search_layers`. They are now separate, and so are the
+expectations:
 
 | Expectation | Fails when |
 | --- | --- |
@@ -93,11 +91,9 @@ ones, where offering a Swiss layer for Lyon is exactly the behaviour the questio
 to catch. `dataset-lookup-flood-de` deliberately does not: naming the flood datasets and
 offering them to click is a good answer to "what data does the Confederation have".
 
-One question's premise was stale rather than its expectation:
 `gs-not-queryable-fallback-de` required the answer to point at the application's own
-catalogue "since this deployment cannot display raster". That was only ever true while
-runs defaulted to `--no-catalog-layers`; under the deployed configuration a raster layer
-is shown with `display_catalog_layer`, which the question now requires.
+catalogue rather than show the layer, which held only while runs defaulted to
+`--no-catalog-layers`. It now requires `display_catalog_layer`.
 
 **Stored baselines recorded before this change are not comparable to runs after it.**
 Every row carries its `catalog_layers` setting, so the two are distinguishable, but the
@@ -108,10 +104,9 @@ records the question set's sha256, and two runs are only comparable when those m
 appending customer regression cases to the benchmark would invalidate every baseline
 already stored under `evals/results/`.
 
-The cases are written to the *correct* answer even where the defect is in the MCP server
-rather than the agent, so `swisstopo-parks-bern-en` is expected to fail on its
-`must_mention: ["8"]` until geosearch stops clipping discrete objects. That is what it is
-for; adjusting the expectation to match current behaviour would delete the finding.
+The cases are written to the correct answer even where the defect is in the MCP server
+rather than the agent, so `swisstopo-parks-bern-en` fails on `must_report_features: 8`
+until geosearch stops clipping discrete objects.
 
 ## How a question is scored
 

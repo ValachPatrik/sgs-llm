@@ -24,12 +24,11 @@
   category: swisstopo_feedback
   question: Show me all regional natural parks in the canton Bern
   user_intent: >-
-    Wants every regional nature park intersecting canton Bern, as whole objects, on the
-    map. Ground truth from swisstopo's QGIS selection of
-    ch.bafu.schutzgebiete-paerke_nationaler_bedeutung against SWISSBOUNDARIES3D is 8. The
-    report said Sonnet returned 6 with geometric artifacts. Nine candidates are fetched;
-    geosearch's clip() drops three and keeps two hairline fragments, so this case fails
-    until that is fixed on the MCP side and is the detector for it.
+    Every regional nature park intersecting canton Bern, as whole objects, on the map.
+    Ground truth 8, from a QGIS selection of
+    ch.bafu.schutzgebiete-paerke_nationaler_bedeutung against SWISSBOUNDARIES3D.
+    Currently 6: geosearch's clip() drops three of the nine fetched candidates and keeps
+    two whose surviving area is below 1e-5 of the original.
   expect:
     # search_locations' position is incidental - Sonnet calls it after search_layers -
     # so only the real dependency order is required. Place scoping is asserted by the
@@ -47,8 +46,8 @@
   category: swisstopo_feedback
   question: Zeige mir die Wanderwegsperrungen im Kanton Bern
   user_intent: >-
-    The report said Sonnet and Ministral were both OK here. This is the floor, and it must
-    stay OK - a prompt change that buys Q7 at the cost of this one is not an improvement.
+    Trail closures in canton Bern, fetched and shown. Floor case: reported working, and a
+    change that buys another case at the cost of this one is not an improvement.
   expect:
     must_call_tool: [filter_features]
     must_produce_layer: true
@@ -60,12 +59,10 @@
   category: swisstopo_feedback
   question: Zeige mir alle Bushaltestellen in der Stadt Bern
   user_intent: >-
-    "Stadt Bern" is the commune, not the canton. The report said Ministral could not find
-    the city boundary, fell back to the canton, and returned every stop in canton Bern.
-    The administrative word has to become place_kind rather than part of the name.
-    Measured against the live server for scale: ch.bav.haltestellen-oev returns 818
-    features for place_kind gemeinde and 7892 for kanton, so a canton fallback is an
-    order of magnitude out.
+    Bus stops in the commune of Bern, not the canton. The administrative word belongs in
+    place_kind, not in the name. For scale: ch.bav.haltestellen-oev returns 818 features
+    for place_kind gemeinde and 7892 for kanton, so a canton fallback is an order of
+    magnitude out.
   expect:
     must_call_tool: [filter_features]
     must_produce_layer: true
@@ -81,11 +78,9 @@
   category: swisstopo_feedback
   question: Zeige mir alle UNESCO Welterbe Kulturstätten in Bern
   user_intent: >-
-    "in Bern" reads as either the canton or the city, and the report asked for the silent
-    choice of the canton to stop. A good answer takes the likelier reading - the city -
-    names the level it used ("in der Gemeinde Bern") and offers the other one. Asking is
-    only right where neither reading is more likely, which is not the case here, so this
-    is judged rather than rule-checked: "did it name the level" is a matter of degree.
+    "in Bern" reads as either the canton or the commune. A good answer takes the likelier
+    reading, names the level it used, and offers the other. Judged rather than
+    rule-checked: whether the level was named is a matter of degree.
   expect:
     must_produce_layer: true
     must_not_fail_tools: true
@@ -97,9 +92,9 @@
   category: swisstopo_feedback
   question: Quelle est la délimitation du parc naturel du Chasseral ?
   user_intent: >-
-    The park is in the BAFU parks layer. The report said Sonnet reached the right result
-    after visible failed steps - "Give an area: `place` from search_locations, or a bbox"
-    rendered as a red Step failed on a turn that then answered.
+    The park's perimeter. It names a feature, not a place: search_locations answers
+    "Chasseral" with Chesières, Chessel and Le Châtelard, so the dataset has to be
+    filtered by name instead. No tool errors expected on the way.
   expect:
     must_produce_layer: true
     must_not_fail_tools: true
@@ -111,9 +106,8 @@
   category: swisstopo_feedback
   question: Zeige mir den Katasterplan der Gemeinde Belp
   user_intent: >-
-    A named official raster plan, asked for in its own right. The report said
-    CadastralWebMap was identified and then not offered, and that Ministral kept proposing
-    the administrative boundary or the ÖREB layer instead. The plan is the answer.
+    A named official raster plan, asked for in its own right. CadastralWebMap is the
+    answer; an administrative boundary or the ÖREB availability layer is not.
   expect:
     must_call_tool: [display_catalog_layer]
     must_not_fail_tools: true
@@ -132,19 +126,10 @@
         Der amtliche Katasterplan (CadastralWebMap) deckt die Gemeinde Belp ab. Sie können
         ihn als amtliche Kartenebene hinzufügen.
   user_intent: >-
-    swisstopo reported this as "sometimes it returns points, sometimes the real parcel",
-    and three live Sonnet runs gave three behaviours: asked which of the two genuine
-    "Belp 20" parcels was meant, declared no queryable federal parcel dataset to exist,
-    or fell back to a point. Measured since: the polygon IS reachable - identify on
-    ch.swisstopo-vd.amtliche-vermessung ("OpenData-AV") at the geocoder's full-precision
-    point returns parcel number 20 with the matching egris_egrid as a Polygon. Two things
-    hid it. search_layers cannot surface a layer whose entire searchable identity is the
-    label "OpenData-AV" and the attribution "AV" - no word a user would type - so
-    concluding it was unavailable was reasonable. And rounding the point to four decimal
-    places, about ten metres, identifies the neighbouring parcel 473 instead. The prompt
-    now names the dataset and forbids re-typing a coordinate; the discovery gap is
-    Ageospatial's. Two real candidates with nothing to choose between them is still the
-    case where asking is right, so that is what is asserted.
+    Two parcels are named "Belp 20", with different EGRIDs, so the answer asks which
+    rather than picking one. Known failing: the behaviour varies between runs. The parcel
+    polygon comes from ch.swisstopo-vd.amtliche-vermessung, which search_layers does not
+    retrieve for parcel vocabulary.
   expect:
     must_clarify: true
     no_layer: true
@@ -157,13 +142,9 @@
   category: swisstopo_feedback
   question: Zeige mir die Parzelle mit EGRID CH 3435 4679 1597
   user_intent: >-
-    The report said "If I use EGRID numbers, hallucinations explode". Measured against
-    the live SearchServer, that is a data-shape bug rather than a model one:
-    CH343546791597 returns the Belp 20 parcel, CH 3435 4679 1597 returns nothing - and
-    the spaced form is exactly what the tools print in their own labels, so a model
-    copying it back gets zero hits and has nothing left to answer from. The question
-    deliberately uses the spaced form a user would paste. A good answer resolves the
-    parcel and shows its polygon.
+    A parcel by EGRID, given in the spaced form the tools print in their own labels.
+    SearchServer resolves CH343546791597 and returns nothing for CH 3435 4679 1597, so the
+    spaces have to be stripped before the call. The answer is the parcel polygon.
   expect:
     must_produce_layer: true
     must_not_fail_tools: true
@@ -174,7 +155,8 @@
   lang: de
   category: swisstopo_feedback
   question: Zeige mir die Gemeindegrenzen von Belp
-  user_intent: The report said both models were OK. Floor case; must stay OK.
+  user_intent: >-
+    A commune boundary, drawn from stored data without a dataset lookup. Floor case.
   expect:
     must_call_tool: [display_division]
     must_produce_layer: true
@@ -191,9 +173,9 @@
     - role: assistant
       content: Hier ist die Gemeindegrenze von Belp.
   user_intent: >-
-    The exact case behind the phantom button. The answer counted 481 buildings and told
-    the user to press "Show result on map", which did not exist because display_layer was
-    never called - and quoted the English label into a German answer.
+    A count scoped to the commune from the previous turn, with the counted features also
+    shown. The answer must not name a button label: labels are translated and will not
+    match the answer's language.
   expect:
     must_chain_tools: [filter_features, analyze_features, display_layer]
     must_produce_layer: true
@@ -206,8 +188,8 @@
   category: swisstopo_feedback
   question: Y a-t-il des bâtiments protégés à Berne ?
   user_intent: >-
-    The report said Sonnet was OK with 131 objects and showed them, while Ministral had
-    the count but could not show them. Showing what was counted is the rule under test.
+    Protected buildings in Bern, counted and shown. Showing what was counted is the rule
+    under test.
   expect:
     must_produce_layer: true
     must_not_fail_tools: true
@@ -218,7 +200,7 @@
   category: swisstopo_feedback
   question: Wo kann ich in der Stadt Bern baden?
   user_intent: >-
-    The report said 2 objects were identified; Sonnet showed them, Ministral could not.
+    Bathing spots in the commune of Bern, shown on the map.
   expect:
     must_produce_layer: true
     must_not_fail_tools: true
@@ -229,7 +211,8 @@
   category: swisstopo_feedback
   question: Welche Gemeinde hat die grösste Fläche im Kanton Graubünden?
   user_intent: >-
-    The report said Sonnet was "Nice!" and Ministral hallucinated. Floor case for Sonnet.
+    The largest commune by area in Graubünden. Requires a fetch and then an analysis; no
+    figure may be estimated.
   expect:
     must_chain_tools: [filter_features, analyze_features]
     must_not_fail_tools: true
@@ -239,7 +222,8 @@
   lang: fr
   category: swisstopo_feedback
   question: Affiche les itinéraires de randonnée dans la région de Schwarzsee
-  user_intent: The report said Sonnet was OK. Floor case.
+  user_intent: >-
+    Hiking routes in the Schwarzsee region, fetched and shown. Floor case.
   expect:
     must_call_tool: [filter_features]
     must_produce_layer: true
@@ -256,12 +240,9 @@
     - role: assistant
       content: Voici les itinéraires de randonnée dans la région du Schwarzsee.
   user_intent: >-
-    There is no elevation-profile tool in the catalogue, though geo.admin.ch's
-    profile.json exists. Until Ageospatial adds one, the only correct answer is to say so
-    plainly and offer what it can, without inventing ascent or descent figures. Judged
-    rather than rule-checked: "declined honestly and invented nothing" is a matter of
-    degree, and `no_layer` cannot express it here because search_layers legitimately
-    offers official layers to click. This case flips to must_call_tool once the tool
+    Elevation profiles for the routes shown in the previous turn. No profile tool exists in
+    the catalogue, though geo.admin.ch's profile.json does, so the answer says so and
+    invents no ascent or descent figures. Judged. Flips to must_call_tool once a tool
     exists.
   expect:
     must_not_fail_tools: true
@@ -277,8 +258,7 @@
   category: swisstopo_feedback
   question: Zeige mir alle UNESCO Welterbe Kulturstätten im Kanton Bern
   user_intent: >-
-    The request says which level it means. Asking here is the over-clarification failure,
-    not restraint.
+    The request names the canton, so asking which level is meant is over-clarification.
   expect:
     must_not_clarify: true
     must_call_tool: [filter_features]
@@ -289,8 +269,8 @@
   category: swisstopo_feedback
   question: Zeige mir alle UNESCO Welterbe Kulturstätten in der Stadt Bern
   user_intent: >-
-    Also says which, at the other level, and exercises stripping "Stadt" into place_kind
-    rather than passing it as part of the name.
+    The request names the city, so asking is over-clarification. Also exercises "Stadt"
+    becoming place_kind rather than part of the name.
   expect:
     must_not_clarify: true
     must_call_tool: [filter_features]

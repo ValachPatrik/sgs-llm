@@ -179,15 +179,11 @@
     There are several Brügg/Brugg in Switzerland. Asking which one is the correct
     behaviour; silently picking one is worse than being slow.
 
-    KNOWN FAILING, and it predates fix/swisstopo-feedback-round-1 - measured against
-    ef1797d with catalog layers held on, so the comparison isolates the prompt: both the
-    old and new prompts answer for Brügg BE without asking. Worth re-deciding rather than
-    silently adjusting. search_locations("Brügg") does surface the ambiguity - Brügg BE at
-    similarity 0.7508 and Brugg AG at 0.5778 - so the model can see it; it picks the exact
-    umlaut match and names it with its canton ("die Gemeinde Brügg BE"). Under the agreed
-    principle - ask when genuinely ambiguous, do not when it is clear - naming the place
-    explicitly is arguably the better answer here, which would make this question's
-    premise the thing to change. Left as-is: it is not ours to redefine.
+    Known failing, and it predates fix/swisstopo-feedback-round-1: measured against
+    ef1797d with catalog layers held on, the earlier prompt fails it identically.
+    search_locations("Brügg") returns Brügg BE at similarity 0.7508 and Brugg AG at
+    0.5778, so the ambiguity is visible; the model takes the exact umlaut match and
+    names it with its canton. Whether that or a question is wanted here is open.
   expect:
     must_clarify: true
     answer_lang: de
@@ -1122,15 +1118,12 @@
   category: geosearch_tools
   question: Wie viele Grundwasser-Messstationen der NAQUA gibt es im Kanton Zug?
   user_intent: >-
-    ch.bafu.hydroweb-messstationen_grundwasser is flagged queryable false and genuinely
-    raises LayerNotQueryable, so no count is available. The answer must say so and name
-    the dataset instead of inventing a figure, and must offer the layer with
+    ch.bafu.hydroweb-messstationen_grundwasser is flagged queryable false and
+    genuinely raises LayerNotQueryable, so no count is available. The answer must say
+    so, name the dataset instead of inventing a figure, and offer the layer with
     display_catalog_layer - which is how a raster layer is shown - rather than sending
-    the user to map.geo.admin.ch. The previous wording of this intent said the deployment
-    "cannot display raster" and required pointing at the application's own catalogue
-    instead; that was true only while runs defaulted to --no-catalog-layers, which is not
-    what the pilot deploys. no_layer still holds: not being queryable, the dataset yields
-    no personalized result to draw.
+    the user to map.geo.admin.ch. no_layer still holds: not being queryable, the
+    dataset yields no personalized result to draw.
   expect:
     must_call_tool: [display_catalog_layer]
     no_layer: true
