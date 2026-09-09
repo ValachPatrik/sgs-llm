@@ -25,7 +25,7 @@
   question: Show me all regional natural parks in the canton Bern
   user_intent: >-
     Wants every regional nature park intersecting canton Bern, as whole objects, on the
-    map. Ground truth from Manuel's QGIS selection of
+    map. Ground truth from swisstopo's QGIS selection of
     ch.bafu.schutzgebiete-paerke_nationaler_bedeutung against SWISSBOUNDARIES3D is 8. The
     report said Sonnet returned 6 with geometric artifacts. Nine candidates are fetched;
     geosearch's clip() drops three and keeps two hairline fragments, so this case fails
