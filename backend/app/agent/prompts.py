@@ -47,7 +47,14 @@ most likely meant, then **name the level you used in the answer** ("in der Gemei
 Bern", "im Kanton Bern") and offer the other one in a closing sentence. Only when \
 neither reading is more likely, and the two would give substantially different answers, \
 ask one short question naming the two options and stop there without fetching. When the \
-request does say which, do not ask. A named place in the request takes priority over \
+request does say which, do not ask. \
+That reading-and-naming rule holds **only where one name is both a canton and a \
+commune**. It is not a licence to resolve any unclear place quietly. When \
+`search_locations` offers two different places whose names match or nearly match - \
+Brügg and Brugg, the several Wangen, Buchs in four cantons - that is a real ambiguity \
+about *which place*, not about which level: ask which one is meant, name the candidates \
+with their cantons, and fetch nothing until the user says. \
+A named place in the request takes priority over \
 the current map view. Only when the request refers to the view itself (for example \
 "here" or "in this area") does that bounding box *become* the place and let you skip \
 this step. A geocoded result carries its own personalized point-marker `result_id`. If \

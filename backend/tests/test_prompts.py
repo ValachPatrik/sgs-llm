@@ -107,3 +107,17 @@ class TestParcelMechanismRules:
 
     def test_forbids_retyping_a_coordinate_from_a_tool_result(self, prompt: str) -> None:
         assert "never re-type or round a coordinate" in prompt
+
+
+class TestDisambiguationIsScoped:
+    """The canton-or-commune rule leaked. Asked for "die Gefahrenkarte für Brügg" — where
+    several Brügg/Brugg exist — Sonnet resolved it to "Gemeinde Brügg (BE)", named the
+    level as the rule says, and offered a layer instead of asking which one. That is a
+    different ambiguity and must still be a question."""
+
+    def test_bounds_the_rule_to_one_name_at_two_levels(self, prompt: str) -> None:
+        assert "only where one name is both a canton and a commune" in prompt
+
+    def test_distinct_places_sharing_a_name_are_still_a_question(self, prompt: str) -> None:
+        assert "two different places" in prompt
+        assert "Brügg" in prompt

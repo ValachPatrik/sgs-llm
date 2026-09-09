@@ -596,9 +596,14 @@ class TestLayerSemanticsAreSeparate:
         assert not verdict.passed
         assert "unexpected_layer" in verdict.stages
 
-    def test_no_catalog_layer_forbids_offering_anything(self) -> None:
+    def test_no_catalog_layer_forbids_calling_display_catalog_layer(self) -> None:
         question = {"id": "x", "expect": {"no_catalog_layer": True}}
-        verdict = evaluate(question, Observation(answer="a", catalog_layers=["Hochwasser"]))
+        offered = Observation(
+            answer="a",
+            tool_calls=["search_layers", "display_catalog_layer"],
+            catalog_layers=["Hochwasser"],
+        )
+        verdict = evaluate(question, offered)
         assert not verdict.passed
         assert "unexpected_catalog_layer" in verdict.stages
         assert evaluate(question, Observation(answer="a")).passed
@@ -618,3 +623,30 @@ class TestLayerSemanticsAreSeparate:
         by_id = {q["id"]: q for q in _yaml.safe_load(QUESTIONS.read_text(encoding="utf-8"))}
         for qid in ("out-of-scope-abroad-fr", "nonexistent-pools-de", "vague-that-thing-de"):
             assert by_id[qid]["expect"].get("no_catalog_layer"), qid
+
+
+class TestNoCatalogLayerKeysOnTheOffer:
+    """search_layers attaches every displayable candidate before the model chooses one
+    (app/agent/loop.py), so keying this on harvested references measured "did
+    search_layers run" rather than "did the answer offer a layer". nonexistent-pools-de
+    failed while correctly saying no dataset matched."""
+
+    def test_candidates_alone_are_not_an_offer(self) -> None:
+        question = {"id": "x", "expect": {"no_catalog_layer": True}}
+        observed = Observation(
+            answer="Kein passender Datensatz.",
+            tool_calls=["search_locations", "search_layers"],
+            catalog_layers=["Messstationen", "Naturschutzgebiete"],
+        )
+        assert evaluate(question, observed).passed
+
+    def test_calling_display_catalog_layer_is_an_offer(self) -> None:
+        question = {"id": "x", "expect": {"no_catalog_layer": True}}
+        observed = Observation(
+            answer="Hier ist die Karte.",
+            tool_calls=["search_layers", "display_catalog_layer"],
+            catalog_layers=["Gefährdungskarte"],
+        )
+        verdict = evaluate(question, observed)
+        assert not verdict.passed
+        assert "unexpected_catalog_layer" in verdict.stages

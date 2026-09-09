@@ -191,7 +191,7 @@ class Observation:
     layers: list[str] = field(default_factory=list)
     # Official layers offered as a clickable title. Separate because the two answer
     # different questions: `no_layer` asks whether a result was put on the map,
-    # `no_catalog_layer` whether anything was offered at all.
+    # `no_catalog_layer` whether display_catalog_layer was actually called.
     catalog_layers: list[str] = field(default_factory=list)
     # Feature counts of the personalized layers produced, so a question can assert the
     # size of the result rather than hunting for a digit in the prose.
@@ -273,7 +273,10 @@ def evaluate(question: dict[str, Any], observed: Observation) -> Verdict:
     if expect.get("no_layer") and observed.layers:
         failures.append(Failure("unexpected_layer", f"put {observed.layers} on the map"))
 
-    if expect.get("no_catalog_layer") and observed.catalog_layers:
+    # Keyed on the call, not on `catalog_layers`: search_layers attaches every displayable
+    # candidate before the model chooses one, so the references alone say nothing about
+    # whether the answer actually offered a layer.
+    if expect.get("no_catalog_layer") and "display_catalog_layer" in observed.tool_calls:
         failures.append(Failure("unexpected_catalog_layer", f"offered {observed.catalog_layers}"))
 
     ceiling = expect.get("max_tools")
