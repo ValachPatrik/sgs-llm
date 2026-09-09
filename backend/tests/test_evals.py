@@ -35,6 +35,9 @@ KNOWN_EXPECT_KEYS = {
     "must_clarify",
     "must_not_clarify",
     "no_layer",
+    "no_catalog_layer",
+    "must_not_fail_tools",
+    "must_report_features",
     "judge",
 }
 # Union of both servers' tool sets; four tools are exclusive to production geosearch.
@@ -70,6 +73,23 @@ class TestQuestionSet:
         for question in QUESTIONS:
             unknown = set(question.get("expect") or {}) - KNOWN_EXPECT_KEYS
             assert not unknown, f"{question['id']}: {unknown}"
+
+    def test_the_swisstopo_set_is_guarded_the_same_way(self) -> None:
+        """It is a second file, so the guard above skipped it entirely - a typo in one of
+        its expectations would have been silently unchecked."""
+        import yaml as _yaml
+        from evals.run import QUESTIONS as _path
+
+        extra = _yaml.safe_load(
+            (_path.parent / "swisstopo-feedback.yaml").read_text(encoding="utf-8")
+        )
+        for question in extra:
+            unknown = set(question.get("expect") or {}) - KNOWN_EXPECT_KEYS
+            assert not unknown, f"{question['id']}: {unknown}"
+            named = set(question["expect"].get("must_call_tool") or []) | set(
+                question["expect"].get("must_chain_tools") or []
+            )
+            assert not named - KNOWN_TOOLS, f"{question['id']}: {named - KNOWN_TOOLS}"
 
     def test_expected_tools_exist(self) -> None:
         for question in QUESTIONS:
@@ -555,3 +575,46 @@ def test_the_parks_chain_accepts_the_order_sonnet_actually_uses() -> None:
         ),
     )
     assert verdict.passed, verdict.failures
+
+
+class TestLayerSemanticsAreSeparate:
+    """A personalized layer is drawn on the map; a catalog reference is only offered for
+    the user to click. Both used to land in Observation.layers, so `no_layer` failed any
+    question whose model called search_layers with catalog layers enabled - which is what
+    the pilot deploys."""
+
+    def test_must_produce_layer_accepts_either_kind(self) -> None:
+        question = {"id": "x", "expect": {"must_produce_layer": True}}
+        assert evaluate(question, Observation(answer="a", layers=["result"])).passed
+        assert evaluate(question, Observation(answer="a", catalog_layers=["official"])).passed
+        assert not evaluate(question, Observation(answer="a")).passed
+
+    def test_no_layer_ignores_an_offered_catalog_layer(self) -> None:
+        question = {"id": "x", "expect": {"no_layer": True}}
+        assert evaluate(question, Observation(answer="a", catalog_layers=["Hochwasser"])).passed
+        verdict = evaluate(question, Observation(answer="a", layers=["my result"]))
+        assert not verdict.passed
+        assert "unexpected_layer" in verdict.stages
+
+    def test_no_catalog_layer_forbids_offering_anything(self) -> None:
+        question = {"id": "x", "expect": {"no_catalog_layer": True}}
+        verdict = evaluate(question, Observation(answer="a", catalog_layers=["Hochwasser"]))
+        assert not verdict.passed
+        assert "unexpected_catalog_layer" in verdict.stages
+        assert evaluate(question, Observation(answer="a")).passed
+
+    def test_clarifying_still_fails_if_it_offered_a_layer_instead(self) -> None:
+        """Offering an official layer is answering anyway, not asking."""
+        question = {"id": "x", "expect": {"must_clarify": True}}
+        observed = Observation(answer="Hier ist die Karte.", catalog_layers=["Gefahrenkarte"])
+        assert not evaluate(question, observed).passed
+
+    def test_the_declining_questions_forbid_offers_too(self) -> None:
+        """Under production config `no_layer` alone would let an out-of-scope answer
+        offer a Swiss layer for Lyon, which is the behaviour the question exists for."""
+        import yaml as _yaml
+        from evals.run import QUESTIONS
+
+        by_id = {q["id"]: q for q in _yaml.safe_load(QUESTIONS.read_text(encoding="utf-8"))}
+        for qid in ("out-of-scope-abroad-fr", "nonexistent-pools-de", "vague-that-thing-de"):
+            assert by_id[qid]["expect"].get("no_catalog_layer"), qid

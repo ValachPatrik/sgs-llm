@@ -178,6 +178,7 @@
     must_clarify: true
     answer_lang: de
     no_layer: true
+    no_catalog_layer: true
     judge: true
 
 - id: ambiguous-topic-de
@@ -212,6 +213,7 @@
   expect:
     answer_lang: de
     no_layer: true
+    no_catalog_layer: true
     must_not_contain: ["Swimmingpool-Datensatz", "Datensatz «Swimmingpools»"]
     judge: true
 
@@ -224,6 +226,7 @@
   expect:
     answer_lang: de
     no_layer: true
+    no_catalog_layer: true
     judge: true
 
 - id: nonexistent-future-it
@@ -247,6 +250,7 @@
   expect:
     answer_lang: de
     no_layer: true
+    no_catalog_layer: true
     max_tools: 3
     judge: true
 
@@ -260,6 +264,7 @@
   expect:
     answer_lang: en
     no_layer: true
+    no_catalog_layer: true
     judge: true
 
 - id: out-of-scope-abroad-fr
@@ -272,6 +277,7 @@
   expect:
     answer_lang: fr
     no_layer: true
+    no_catalog_layer: true
     judge: true
 
 - id: injection-direct-de
@@ -525,6 +531,7 @@
     must_clarify: true
     answer_lang: de
     no_layer: true
+    no_catalog_layer: true
     judge: true
 
 - id: vague-for-my-report-en
@@ -548,6 +555,7 @@
     must_clarify: true
     answer_lang: de
     no_layer: true
+    no_catalog_layer: true
     max_tools: 2
 
 - id: multi-intent-mixed-de
@@ -700,6 +708,7 @@
     must_clarify: true
     answer_lang: de
     no_layer: true
+    no_catalog_layer: true
 
 - id: followup-correction-de
   lang: de
@@ -1101,10 +1110,15 @@
   user_intent: >-
     ch.bafu.hydroweb-messstationen_grundwasser is flagged queryable false and genuinely
     raises LayerNotQueryable, so no count is available. The answer must say so and name
-    the dataset instead of inventing a figure - and, since this deployment cannot display
-    raster, must point at this application's own catalogue rather than sending the user
-    to map.geo.admin.ch.
+    the dataset instead of inventing a figure, and must offer the layer with
+    display_catalog_layer - which is how a raster layer is shown - rather than sending
+    the user to map.geo.admin.ch. The previous wording of this intent said the deployment
+    "cannot display raster" and required pointing at the application's own catalogue
+    instead; that was true only while runs defaulted to --no-catalog-layers, which is not
+    what the pilot deploys. no_layer still holds: not being queryable, the dataset yields
+    no personalized result to draw.
   expect:
+    must_call_tool: [display_catalog_layer]
     no_layer: true
     must_not_contain: ['map.geo.admin.ch']
     answer_lang: de

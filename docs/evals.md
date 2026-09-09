@@ -68,13 +68,40 @@ python evals/run.py --questions evals/swisstopo-feedback.yaml --catalog-layers \
   --mcp-url http://127.0.0.1:8790/mcp --model <id> --region <region>
 ```
 
-`--catalog-layers` is required rather than optional here. The pilot deploys with
-`Settings.enable_catalog_layers` **True** and no deployment overrides it, so without the
-flag the agent runs under `prompts.NO_RASTER_DISPLAY_NOTE` — told it cannot show raster
-layers at all — which no deployed user ever sees. The flag is not the default for
-`questions.yaml` because `no_layer` counts catalog references, and 14 of its questions
-recorded their baselines without them; separating "put a result on the map" from "offered
-an official layer to click" is a change worth making deliberately, not as a side effect.
+`--catalog-layers` is now the default for both sets, because that is what the pilot
+deploys: `Settings.enable_catalog_layers` is **True** and no deployment overrides it.
+`--no-catalog-layers` measures the fallback prompt (`prompts.NO_RASTER_DISPLAY_NOTE`),
+which tells the agent it cannot show raster layers at all.
+
+## Two kinds of map output, two expectations
+
+A **personalized layer** is drawn on the map; a **catalog reference** is only offered as a
+clickable title. Both used to land in one `Observation.layers` list, which made `no_layer`
+fail any question whose model called `search_layers` — so the default had to stay off, and
+the default staying off is why every stored run measured the fallback prompt.
+
+They are now separate, and so are the expectations:
+
+| Expectation | Fails when |
+| --- | --- |
+| `must_produce_layer` | neither kind was produced |
+| `no_layer` | a **personalized** layer was drawn |
+| `no_catalog_layer` | an official layer was **offered** |
+
+Nine questions carry `no_catalog_layer` — the out-of-scope, no-such-dataset and vague
+ones, where offering a Swiss layer for Lyon is exactly the behaviour the question exists
+to catch. `dataset-lookup-flood-de` deliberately does not: naming the flood datasets and
+offering them to click is a good answer to "what data does the Confederation have".
+
+One question's premise was stale rather than its expectation:
+`gs-not-queryable-fallback-de` required the answer to point at the application's own
+catalogue "since this deployment cannot display raster". That was only ever true while
+runs defaulted to `--no-catalog-layers`; under the deployed configuration a raster layer
+is shown with `display_catalog_layer`, which the question now requires.
+
+**Stored baselines recorded before this change are not comparable to runs after it.**
+Every row carries its `catalog_layers` setting, so the two are distinguishable, but the
+87-question set needs one re-baseline run under the new default.
 
 It is a **separate file, not extra categories in `questions.yaml`**: every result row
 records the question set's sha256, and two runs are only comparable when those match, so
@@ -93,7 +120,7 @@ Each failure carries a **stage**, so the report says *where* a model broke down 
 than only that it failed: `no_tool_call`, `wrong_tool`, `chain_broken`, `no_layer`,
 `unexpected_layer`, `too_many_tools`, `wrong_language`, `missing_mention`,
 `forbidden_content`, `no_clarification`, `over_clarified`, `exchange_error`, `empty_answer`,
-`failed_tools`.
+`failed_tools`, `unexpected_catalog_layer`, `wrong_feature_count`.
 
 `failed_tools` reads the turn's own record of which calls errored, not the progress
 events: a tool that declines and says what to do instead reports to the user as an

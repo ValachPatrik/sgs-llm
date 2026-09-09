@@ -219,9 +219,12 @@ async def ask(
             async for event in turn:
                 if event.type == "final":
                     observed.answer = event.content_markdown
-                    # Both kinds count as "put something on the map". Recording only
-                    # `layers` made catalog references invisible to must_produce_layer.
-                    observed.layers = [layer.name for layer in (event.layers or [])] + [
+                    # Kept apart: a personalized layer is drawn on the map, a catalog
+                    # reference is only offered for the user to click. must_produce_layer
+                    # accepts either (Observation.all_layers); no_layer forbids only the
+                    # first, and no_catalog_layer only the second.
+                    observed.layers = [layer.name for layer in (event.layers or [])]
+                    observed.catalog_layers = [
                         ref.name or ref.id for ref in (event.catalog_layers or [])
                     ]
                     observed.layer_feature_counts = [
@@ -261,7 +264,7 @@ async def judge(
         intent=question.get("user_intent", "a correct, honest answer"),
         answer=observed.answer or "(no answer)",
         tools=", ".join(observed.tool_calls) or "none",
-        layers=", ".join(observed.layers) or "none",
+        layers=", ".join(observed.all_layers) or "none",
     )
     try:
         result = await models.converse(
@@ -534,13 +537,13 @@ async def main() -> None:
     parser.add_argument(
         "--catalog-layers",
         action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Whether official catalog layers can be offered. NOTE: the deployed pilot "
-        "runs with them ON - Settings.enable_catalog_layers is True and no deployment "
-        "overrides it - so measuring production behaviour needs --catalog-layers. The "
-        "default is off only because `no_layer` counts catalog references, so flipping "
-        "it would fail 14 questions in questions.yaml whose stored baselines were "
-        "recorded without them. Every result row records which was used.",
+        default=True,
+        help="Whether official catalog layers can be offered. On by default because that "
+        "is what the pilot deploys: Settings.enable_catalog_layers is True and no "
+        "deployment overrides it. --no-catalog-layers measures the fallback prompt "
+        "instead (prompts.NO_RASTER_DISPLAY_NOTE), which tells the model it cannot show "
+        "raster layers at all. Every result row records which was used, so rows recorded "
+        "under one setting are not a controlled comparison against the other.",
     )
     args = parser.parse_args()
 
