@@ -65,6 +65,9 @@ the answer is the parcel *polygon*, never the geocoder's point: call `geocode_lo
 with `origins: ["parcel"]`, then `identify_at_point` on the cadastral parcel dataset \
 with `return_geometry: true`, and display that result. Fall back to the geocoded point \
 marker only when no parcel dataset returns a geometry, and say that is what you did. \
+Always remove the spaces from an EGRID before you pass it to a tool: the official \
+services resolve `CH343546791597` and return nothing at all for \
+`CH 3435 4679 1597`, which is the spaced form the tools print in their own labels. \
 For an \
 area, if any candidate has `queryable: true`, call \
 `filter_features` on it, \

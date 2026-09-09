@@ -515,8 +515,10 @@ def test_eval_settings_match_the_deployed_catalog_layer_setting() -> None:
 
     from app.config import Settings
 
-    args = argparse.Namespace(timeout=None, catalog_layers=True)
-    assert eval_settings(args).enable_catalog_layers is Settings().enable_catalog_layers
+    # The pilot runs with them on, so --catalog-layers is what measures production.
+    on = argparse.Namespace(timeout=None, catalog_layers=True)
+    assert eval_settings(on).enable_catalog_layers is Settings().enable_catalog_layers is True
 
+    # The default stays off so the 14 no_layer questions keep their recorded baselines.
     off = argparse.Namespace(timeout=None, catalog_layers=False)
     assert eval_settings(off).enable_catalog_layers is False

@@ -14,6 +14,10 @@
 #
 # The production tool surface is required. Against mcp_dummy these measure a smaller tool
 # set than the deployment has (docs/evals.md).
+#
+# --catalog-layers is required, not optional: the pilot deploys with
+# Settings.enable_catalog_layers True and nothing overrides it, and without the flag the
+# agent is told it cannot show raster layers at all, which no deployed user ever sees.
 
 - id: swisstopo-parks-bern-en
   lang: en
@@ -56,13 +60,18 @@
     "Stadt Bern" is the commune, not the canton. The report said Ministral could not find
     the city boundary, fell back to the canton, and returned every stop in canton Bern.
     The administrative word has to become place_kind rather than part of the name.
+    Measured against the live server for scale: ch.bav.haltestellen-oev returns 818
+    features for place_kind gemeinde and 7892 for kanton, so a canton fallback is an
+    order of magnitude out.
   expect:
     must_call_tool: [filter_features]
     must_produce_layer: true
     must_not_fail_tools: true
     answer_lang: de
-    must_mention: [Bern]
-    must_not_contain: [Kanton Bern]
+    # Not must_not_contain: [Kanton Bern] - the disambiguation rule now requires the
+    # answer to name the level it used and offer the other, so that phrase is expected.
+    # This asserts the level named is the commune.
+    must_mention: ["Gemeinde Bern"]
 
 - id: swisstopo-unesco-bern-de
   lang: de
@@ -120,14 +129,34 @@
         Der amtliche Katasterplan (CadastralWebMap) deckt die Gemeinde Belp ab. Sie können
         ihn als amtliche Kartenebene hinzufügen.
   user_intent: >-
-    A parcel answer is the parcel polygon. The report said it alternated between a
-    geocoded point and the real parcel from OpenData-AV, which is a determinism problem
-    rather than a capability one.
+    Measured: geocode_location with origins ["parcel"] returns two genuine parcels named
+    "Belp 20", with different EGRIDs. Two real candidates and nothing to choose between
+    them is the case where asking is right, so a good answer lists them and asks - it
+    must not silently pick one or invent a third.
+  expect:
+    must_clarify: true
+    no_layer: true
+    must_not_fail_tools: true
+    answer_lang: de
+    must_mention: [EGRID]
+
+- id: swisstopo-parzelle-egrid-de
+  lang: de
+  category: swisstopo_feedback
+  question: Zeige mir die Parzelle mit EGRID CH 3435 4679 1597
+  user_intent: >-
+    The report said "If I use EGRID numbers, hallucinations explode". Measured against
+    the live SearchServer, that is a data-shape bug rather than a model one:
+    CH343546791597 returns the Belp 20 parcel, CH 3435 4679 1597 returns nothing - and
+    the spaced form is exactly what the tools print in their own labels, so a model
+    copying it back gets zero hits and has nothing left to answer from. The question
+    deliberately uses the spaced form a user would paste. A good answer resolves the
+    parcel and shows its polygon.
   expect:
     must_produce_layer: true
     must_not_fail_tools: true
     answer_lang: de
-    must_mention: ["20"]
+    must_mention: [Belp]
 
 - id: swisstopo-gemeindegrenzen-belp-de
   lang: de
@@ -216,13 +245,16 @@
       content: Voici les itinéraires de randonnée dans la région du Schwarzsee.
   user_intent: >-
     There is no elevation-profile tool in the catalogue, though geo.admin.ch's
-    profile.json exists. Until Ageospatial adds one, the only correct answer is to say the
-    profile is not available here rather than to invent numbers. This case flips to
-    must_call_tool once the tool exists.
+    profile.json exists. Until Ageospatial adds one, the only correct answer is to say so
+    plainly and offer what it can, without inventing ascent or descent figures. Judged
+    rather than rule-checked: "declined honestly and invented nothing" is a matter of
+    degree, and `no_layer` cannot express it here because search_layers legitimately
+    offers official layers to click. This case flips to must_call_tool once the tool
+    exists.
   expect:
     must_not_fail_tools: true
     answer_lang: fr
-    no_layer: true
+    judge: true
 
 # Counter-cases for the disambiguation rule. Without these, a prompt that asks "canton or
 # commune?" about everything would score well on swisstopo-unesco-bern-de while being

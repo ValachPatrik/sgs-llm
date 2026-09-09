@@ -82,3 +82,12 @@ class TestNamedFeatureRules:
 
     def test_forbids_an_area_less_filter_call(self, prompt: str) -> None:
         assert "never call `filter_features` with neither `place` nor `bbox`" in prompt
+
+
+class TestEgridRule:
+    """Q6: "If I use EGRID numbers, hallucinations explode". Measured against the live
+    SearchServer: CH343546791597 returns the parcel, CH 3435 4679 1597 returns nothing -
+    and the spaced form is what the tools themselves put in their labels."""
+
+    def test_an_egrid_is_passed_without_spaces(self, prompt: str) -> None:
+        assert "remove the spaces from an EGRID" in prompt

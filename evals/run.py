@@ -534,12 +534,13 @@ async def main() -> None:
     parser.add_argument(
         "--catalog-layers",
         action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Whether official catalog layers can be offered. On by default because "
-        "Settings.enable_catalog_layers is True and no deployment overrides it, so this "
-        "is what the pilot runs. --no-catalog-layers measures the fallback prompt "
-        "instead (prompts.NO_RASTER_DISPLAY_NOTE), which tells the model it cannot show "
-        "raster layers at all. Every result row records which was used.",
+        default=False,
+        help="Whether official catalog layers can be offered. NOTE: the deployed pilot "
+        "runs with them ON - Settings.enable_catalog_layers is True and no deployment "
+        "overrides it - so measuring production behaviour needs --catalog-layers. The "
+        "default is off only because `no_layer` counts catalog references, so flipping "
+        "it would fail 14 questions in questions.yaml whose stored baselines were "
+        "recorded without them. Every result row records which was used.",
     )
     args = parser.parse_args()
 

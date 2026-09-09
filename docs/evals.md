@@ -64,9 +64,17 @@ swisstopo's test round of 2026-09-08, including the two-turn conversations and t
 over-clarification counter-cases. Run it with `--questions`:
 
 ```bash
-python evals/run.py --questions evals/swisstopo-feedback.yaml \
+python evals/run.py --questions evals/swisstopo-feedback.yaml --catalog-layers \
   --mcp-url http://127.0.0.1:8790/mcp --model <id> --region <region>
 ```
+
+`--catalog-layers` is required rather than optional here. The pilot deploys with
+`Settings.enable_catalog_layers` **True** and no deployment overrides it, so without the
+flag the agent runs under `prompts.NO_RASTER_DISPLAY_NOTE` — told it cannot show raster
+layers at all — which no deployed user ever sees. The flag is not the default for
+`questions.yaml` because `no_layer` counts catalog references, and 14 of its questions
+recorded their baselines without them; separating "put a result on the map" from "offered
+an official layer to click" is a change worth making deliberately, not as a side effect.
 
 It is a **separate file, not extra categories in `questions.yaml`**: every result row
 records the question set's sha256, and two runs are only comparable when those match, so
