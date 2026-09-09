@@ -43,8 +43,14 @@ class TestPlaceKindDiscipline:
         assert "Stadt Bern" in prompt
         assert "The word is the `kind`, not part of the `name`." in prompt
 
-    def test_asks_when_a_name_is_both_a_canton_and_a_commune(self, prompt: str) -> None:
+    def test_names_the_level_it_chose_when_a_name_is_canton_and_commune(self, prompt: str) -> None:
+        """Sonnet resolved "in Bern" to the commune and said so, which is the behaviour
+        wanted: ask only where neither reading is more likely."""
         assert "both a canton and a commune" in prompt
+        assert "**name the level you used in the answer**" in prompt
+
+    def test_asks_only_when_neither_reading_is_more_likely(self, prompt: str) -> None:
+        assert "Only when neither reading is more likely" in prompt
 
     def test_does_not_ask_when_the_request_already_says_which(self, prompt: str) -> None:
         assert "When the request does say which, do not ask." in prompt
@@ -60,3 +66,19 @@ class TestParcelAndPlanRules:
     def test_a_named_official_plan_is_the_answer(self, prompt: str) -> None:
         assert "Katasterplan" in prompt
         assert "do not substitute an administrative boundary" in prompt
+
+
+class TestNamedFeatureRules:
+    """Q5: "le parc naturel du Chasseral" names a feature, not a place.
+    search_locations answers it with Chesières, Chessel and Le Châtelard - plausible
+    place names with nothing to do with the park - and the model then called
+    filter_features with neither place nor bbox, twice."""
+
+    def test_a_named_feature_is_not_resolved_as_a_place(self, prompt: str) -> None:
+        assert "names a specific feature rather than an area" in prompt
+
+    def test_gives_the_nationwide_name_filter(self, prompt: str) -> None:
+        assert '`place: "Schweiz"` with `place_kind: "land"`' in prompt
+
+    def test_forbids_an_area_less_filter_call(self, prompt: str) -> None:
+        assert "never call `filter_features` with neither `place` nor `bbox`" in prompt

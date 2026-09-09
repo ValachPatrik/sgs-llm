@@ -224,6 +224,11 @@ async def ask(
                     observed.layers = [layer.name for layer in (event.layers or [])] + [
                         ref.name or ref.id for ref in (event.catalog_layers or [])
                     ]
+                    observed.layer_feature_counts = [
+                        layer.feature_count
+                        for layer in (event.layers or [])
+                        if layer.feature_count is not None
+                    ]
                 elif event.type == "error":
                     observed.error_code = event.code
     except TimeoutError:
@@ -528,10 +533,13 @@ async def main() -> None:
     )
     parser.add_argument(
         "--catalog-layers",
-        action="store_true",
-        help="Enable the proposed catalog_layers capability. Off by default so a run "
-        "measures what the deployed pilot does; use this to produce evidence for the "
-        "protocol proposal (docs/protocol.md).",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Whether official catalog layers can be offered. On by default because "
+        "Settings.enable_catalog_layers is True and no deployment overrides it, so this "
+        "is what the pilot runs. --no-catalog-layers measures the fallback prompt "
+        "instead (prompts.NO_RASTER_DISPLAY_NOTE), which tells the model it cannot show "
+        "raster layers at all. Every result row records which was used.",
     )
     args = parser.parse_args()
 

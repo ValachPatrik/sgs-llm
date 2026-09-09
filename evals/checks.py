@@ -188,6 +188,9 @@ class Observation:
     tool_calls: list[str] = field(default_factory=list)
     failed_tools: list[str] = field(default_factory=list)
     layers: list[str] = field(default_factory=list)
+    # Feature counts of the personalized layers produced, so a question can assert the
+    # size of the result rather than hunting for a digit in the prose.
+    layer_feature_counts: list[int] = field(default_factory=list)
     error_code: str | None = None
     model_id: str = ""
     latency_ms: int = 0
@@ -241,6 +244,16 @@ def evaluate(question: dict[str, Any], observed: Observation) -> Verdict:
 
     if expect.get("must_produce_layer") and not observed.layers:
         failures.append(Failure("no_layer", "expected a map layer, none produced"))
+
+    wanted_features = expect.get("must_report_features")
+    if wanted_features is not None and wanted_features not in observed.layer_feature_counts:
+        failures.append(
+            Failure(
+                "wrong_feature_count",
+                f"expected a layer of {wanted_features} features, got "
+                f"{observed.layer_feature_counts or 'none'}",
+            )
+        )
 
     if expect.get("must_not_fail_tools") and observed.failed_tools:
         failures.append(

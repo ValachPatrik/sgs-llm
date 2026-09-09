@@ -31,7 +31,9 @@
     must_produce_layer: true
     must_not_fail_tools: true
     answer_lang: en
-    must_mention: ["8"]
+    # Not must_mention: ["8"] - a single digit matches any area figure in the table, so
+    # that expectation passed on an answer that said 6. This asserts the result itself.
+    must_report_features: 8
 
 - id: swisstopo-wanderwegsperrungen-be-de
   lang: de
@@ -67,13 +69,16 @@
   category: swisstopo_feedback
   question: Zeige mir alle UNESCO Welterbe Kulturstätten in Bern
   user_intent: >-
-    "in Bern" is genuinely ambiguous between the canton and the city. The report asked for
-    this to be a question rather than a silent choice of the canton, which is what the
-    tool does when place_kind is omitted.
+    "in Bern" reads as either the canton or the city, and the report asked for the silent
+    choice of the canton to stop. A good answer takes the likelier reading - the city -
+    names the level it used ("in der Gemeinde Bern") and offers the other one. Asking is
+    only right where neither reading is more likely, which is not the case here, so this
+    is judged rather than rule-checked: "did it name the level" is a matter of degree.
   expect:
-    must_clarify: true
-    no_layer: true
+    must_produce_layer: true
+    must_not_fail_tools: true
     answer_lang: de
+    judge: true
 
 - id: swisstopo-chasseral-fr
   lang: fr

@@ -481,3 +481,42 @@ class TestSwisstopoFeedbackSet:
 
         path = QUESTIONS_PATH.parent / "swisstopo-feedback.yaml"
         assert question_set_hash(path) != question_set_hash(QUESTIONS_PATH)
+
+
+class TestFeatureCountCheck:
+    """`must_mention: ["8"]` passed an answer that said 6, because a single digit matches
+    any area figure in the table. The claim has to be asserted on the result."""
+
+    def test_fails_when_the_layer_has_a_different_count(self) -> None:
+        question = {"id": "x", "expect": {"must_report_features": 8}}
+        verdict = evaluate(question, Observation(answer="6 parks", layer_feature_counts=[6]))
+        assert not verdict.passed
+        assert "wrong_feature_count" in verdict.stages
+
+    def test_fails_when_no_layer_carried_a_count(self) -> None:
+        question = {"id": "x", "expect": {"must_report_features": 8}}
+        assert not evaluate(question, Observation(answer="8 parks")).passed
+
+    def test_passes_when_a_layer_has_the_expected_count(self) -> None:
+        question = {"id": "x", "expect": {"must_report_features": 8}}
+        assert evaluate(question, Observation(answer="acht", layer_feature_counts=[1, 8])).passed
+
+    def test_is_not_applied_when_the_question_does_not_ask_for_it(self) -> None:
+        assert evaluate({"id": "x", "expect": {}}, Observation(answer="ok")).passed
+
+
+def test_eval_settings_match_the_deployed_catalog_layer_setting() -> None:
+    """The default was off, with help text claiming that was what the pilot does. It is
+    not: Settings.enable_catalog_layers is True and no deployment overrides it, so every
+    run was measuring the NO_RASTER_DISPLAY_NOTE prompt instead of the real one."""
+    import argparse
+
+    from evals.run import eval_settings
+
+    from app.config import Settings
+
+    args = argparse.Namespace(timeout=None, catalog_layers=True)
+    assert eval_settings(args).enable_catalog_layers is Settings().enable_catalog_layers
+
+    off = argparse.Namespace(timeout=None, catalog_layers=False)
+    assert eval_settings(off).enable_catalog_layers is False
