@@ -522,3 +522,36 @@ def test_eval_settings_match_the_deployed_catalog_layer_setting() -> None:
     # The default stays off so the 14 no_layer questions keep their recorded baselines.
     off = argparse.Namespace(timeout=None, catalog_layers=False)
     assert eval_settings(off).enable_catalog_layers is False
+
+
+def test_the_parks_chain_accepts_the_order_sonnet_actually_uses() -> None:
+    """Recorded from the live run: search_layers comes before search_locations, and
+    describe_layer sits in the middle. Requiring search_locations first failed a correct
+    sequence."""
+    import yaml as _yaml
+    from evals.run import QUESTIONS as _Q
+
+    path = _Q.parent / "swisstopo-feedback.yaml"
+    parks = next(
+        q for q in _yaml.safe_load(path.read_text()) if q["id"] == "swisstopo-parks-bern-en"
+    )
+    observed_sequence = [
+        "search_layers",
+        "search_locations",
+        "describe_layer",
+        "filter_features",
+        "filter_features",
+        "filter_features",
+        "display_layer",
+        "display_division",
+    ]
+    verdict = evaluate(
+        parks,
+        Observation(
+            answer="8 regional natural parks",
+            tool_calls=observed_sequence,
+            layers=["Parks"],
+            layer_feature_counts=[8],
+        ),
+    )
+    assert verdict.passed, verdict.failures

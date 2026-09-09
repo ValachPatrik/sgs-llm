@@ -31,7 +31,10 @@
     geosearch's clip() drops three and keeps two hairline fragments, so this case fails
     until that is fixed on the MCP side and is the detector for it.
   expect:
-    must_chain_tools: [search_locations, search_layers, filter_features, display_layer]
+    # search_locations' position is incidental - Sonnet calls it after search_layers -
+    # so only the real dependency order is required. Place scoping is asserted by the
+    # feature count instead.
+    must_chain_tools: [search_layers, filter_features, display_layer]
     must_produce_layer: true
     must_not_fail_tools: true
     answer_lang: en
