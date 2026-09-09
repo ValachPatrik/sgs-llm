@@ -77,7 +77,11 @@
     must_chain_tools: [search_locations, filter_features]
     must_produce_layer: true
     answer_lang: de
-    max_tools: 6
+    # Measured 2026-09-09, same prompt and model, only the flag differing: 6 calls with
+    # --no-catalog-layers, 8 with them on. The delta is exactly two display_catalog_layer
+    # offers. The old ceiling of 6 was calibrated while runs defaulted to the flag off,
+    # which is not what the pilot deploys.
+    max_tools: 8
 
 - id: place-commune-sion-fr
   lang: fr
